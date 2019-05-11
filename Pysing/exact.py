@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
-# Program to perform calculations for the transvers field ising model.
+# Program to perform exact diagonalization of the transvers field ising model.
 
 from scipy.sparse.linalg import eigsh
 import numpy as np
-import random
-import sys
 import getopt, sys
 
 def usage():
@@ -51,6 +49,7 @@ class H_TFIM():
         self.g = g
         self.dim = 1 << L
         self.mat = np.zeros((self.dim, self.dim))
+        self.mag = np.zeros(self.dim)
         # nearest neighbour term
         for basis in range(self.dim):
             M = 0
@@ -75,10 +74,58 @@ class H_TFIM():
                 # spinflip at 'site' and factor -Jg
                 self.mat[basis ^ (1 << site), basis] = -J * g
 
+        # magnetization
+        for basis in range(self.dim):
+            for site in range(L):
+                # count parallel spins
+                if (basis >> site) & 1: 
+                    self.mag[basis] += 1
+                else:
+                    self.mag[basis] -= 1
+        # print([self.mag[i] for i in range(len(self.mag))])
+
     # representation of H_TFIM (for printing)
     def __repr__(self):
         return "-%.1f * [∑_{<ij>}^%d σ^z_i σ^z_j + %.1f * ∑_{i}^%d  σ^x_i]\n%r" \
                 % (self.J, self.L, self.g, self.L, self.mat)
+
+def get_order_parameter(vec,ham):
+    # vector is supposed to be normalized
+    # you can double check by using
+    # print(sum([c**2 for c in vec]))
+    # the order parameter is defined as:
+    #    for a basis vector: |#up - #down| / L
+    #    for a general state: weighted in the basis vectors
+    return sum([vec[j]**2 * abs(ham.mag[j]) for j in range(len(vec))]) / ham.L
+
+def get_lowest_modes(hamiltonian, k):
+    # return the eigenvalues and eigenvectors
+    return eigsh(hamiltonian.mat, k=min(k,hamiltonian.dim-1), which='SA')
+
+def analyse_spectrum(L, J, g, print_dominant=False, threshold=0.12):
+    # create the hamiltonian
+    hamiltonian = H_TFIM(L, J, g)
+    # print the hamiltonian
+    print('hamiltonian:\n', hamiltonian)
+
+    # diagonalize the hamiltonian
+    eigenvalues, eigenvectors = get_lowest_modes(hamiltonian, 30)
+
+    # print the eigenvalues
+    print('eigenvalues: ', eigenvalues)
+    # print the eigenvectors
+    print('eigenvector per eigenvalue:')
+    for i in range(len(eigenvalues)):
+        eigenvec = eigenvectors[:, i]
+        print('{0:.2f}: '.format(eigenvalues[i]), eigenvec, end=';  ')
+        # print out the order parameter for the given state
+        print('m = {0:.3f}'.format(get_order_parameter(eigenvec, hamiltonian)))
+        # collect the dominant contributions in eigenvec
+        if print_dominant:
+            dominant = [d for d in range(len(eigenvec)) if eigenvec[d] > threshold]
+            for j in range(len(dominant)):
+                print('{0:b}'.format(dominant[j]), end=';  ')
+            print()
 
 def main():
     # set printing format for numpy
@@ -89,48 +136,10 @@ def main():
     # J, g: parameters of H_{TFIM}
     L, J, g = get_options()
 
-    # create the hamiltonian
-    hamiltonian = H_TFIM(L, J, g)
+    # do a spectrum analysis:
+    analyse_spectrum(L,J,g, print_dominant=False)
 
-    print(hamiltonian)
-
-    # diagonalize the hamiltonian
-    eigenvalues, eigenvectors = eigsh(hamiltonian.mat, k=min(30,hamiltonian.dim-1), which='SA')
-
-    # print the eigenvalues
-    print(eigenvalues)
-    # print the eigenvectors
-    for i in range(len(eigenvalues)):
-        print('{0:.2f}: '.format(eigenvalues[i]), eigenvectors[:, i])
-    '''
-    for i in range(min(6,len(eigenvectors))):
-        vector = eigenvectors[i]
-        for b in range(len(vector)):
-            basis = vector[b]
-            if abs(basis) > 0.001:
-                print("Eigenvector {0:d}: {1:10b}".format(i, b))
-    '''
 
 # don't run main if included 
 if __name__ == "__main__":
     main()
-
-# customized build
-# { "shell_cmd": "python3 ising.py -L8 -J1 -g0.5"}
-
- #identity = np.eye(8)
-    #print(identity)
-    #test = np.array([0, 5, 6, 8, 7, 9, 4, 5])
-    #print(identity * test[0])
-    #print(identity * test)
-    #print(np.dot(identity,test))
-    #print(np.einsum('ij,j->i', identity, test))
-
-# print("check: " + str(3 >> 1))
-#     print("check: " + str(3 >> 0))
-#     print("check: " + str(1 ^ 3))
-#     print("check: " + str(2 & 1))
-#     print("check: " + str(0 >> 0 ^ 0 >> 1))
-#     print("check: " + str((0 >> 0 ^ 0 >> 1) & 1))
-
-# print("basis: {0:b}".format(basis))
