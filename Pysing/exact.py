@@ -5,17 +5,19 @@ from scipy.sparse.linalg import eigsh
 import numpy as np
 import getopt, sys
 
-def usage():
-    "Syntaxis: ising.exe -L <sites> [-J <J> -g <g>]"
-
-def get_options():
+def get_options(getD=False):
+    # print the syntax
+    def usage():
+        program = sys.argv[0].split('/')[-1]
+        print("Syntaxis: {0:s} -L <sites> [-J <J> -g <g>]".format(program))
     # default values
     L = -1
     J = 1.0
     g = 0.0
+    D = -1
     # get the values from the options
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hL:J:g:", ["help"])
+        opts, args = getopt.getopt(sys.argv[1:], "hL:J:g:D:", ["help"])
     except getopt.GetoptError as err:
         # print help information and exit:
         print(str(err))  # will print sth like "option -a not recognized"
@@ -28,6 +30,8 @@ def get_options():
             J = float(arg)
         elif opt == "-g":
             g = float(arg)
+        elif opt == "-D":
+            D = int(arg)
         elif opt in ("-h", "--help"):
             usage()
             sys.exit()
@@ -35,10 +39,16 @@ def get_options():
             assert False, "unhandled option"
     # check obligated parameters
     if L <= 0:
-        raise IOError("L is obligated and should be larger then 0.")
         usage()
+        raise IOError("L is obligated and should be larger then 0.")
+    if getD and D <= 0:
+        usage()
+        raise IOError("D is obligated and should be larger then 0.")
     # return the options found
-    return L, J, g
+    if getD:
+        return L, J, g, D
+    else:
+        return L, J, g
 
 # H_TFIM = -J * [∑_{<ij>}^L σ^z_i σ^z_j + g * ∑_{i}^L  σ^x_i]
 class H_TFIM():
@@ -112,9 +122,11 @@ def analyse_spectrum(L, J, g, print_dominant=False, threshold=0.12):
     eigenvalues, eigenvectors = get_lowest_modes(hamiltonian, 30)
 
     # print the eigenvalues
-    print('eigenvalues: ', eigenvalues)
+    print('energies: ', eigenvalues)
+    # print the energies per site
+    print('ground state energy per site: ', eigenvalues[0] / hamiltonian.L)
     # print the eigenvectors
-    print('eigenvector per eigenvalue:')
+    print('eigenvector per energy:')
     for i in range(len(eigenvalues)):
         eigenvec = eigenvectors[:, i]
         print('{0:.2f}: '.format(eigenvalues[i]), eigenvec, end=';  ')
