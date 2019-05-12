@@ -98,36 +98,46 @@ def main():
     for i in range(N,0,-1):  # incl. N, excl. 0
         RL_matrices[i] = matmul(RL_matrices[i], RL_matrices[i+1])
 
-    # remark that W(s) = Tr(A(s_1)...A(s_N)) = Tr(L(1))
-    W = np.trace(RL_matrices[1]) # := W(S)
-
-    print('W:', W)
-
+    # wave function coefficients for each state S
+    W = np.zeros(F)    # W(S) = Tr(A(s_1)...A(s_N))
     # estimators for the energy contributions to H_{TFIM}:
-    E_z = np.zeros(F)
-    E_x = np.zeros(F)
-    # estimator for the derivative of ...
-    for sweep in range(F):
+    E_z = np.zeros(F)  # E_z(S) = J * ∑_{sites} *
+                       # [# anti-parallel(S) - # parallel(S)]
+    E_x = np.zeros(F)  # E_x(S) = Jg * ∑_{m} W(S'_m)/W(S)
+    # estimator for the derivatives of the energy
+    Wderiv = [np.zeros((D,D)) for i in range(F)]   # WRONG DIMENSIONS!!!
+    # we should collect matrices per sweep S, per site m, per spin up/down at this site!!!
+        # W(S) * Δ(S) = ∂W(S)/∂A(S)
+        # <=> W(S) * [Δ(S)]^s_{ij} = ∂W(S)/∂[A(S)]^s_{ij}
 
+    # do one simulation bin; i.e. collect enough information
+    # to calculate the ensemble averages needed to update W(S)
+    for S in range(F):
+        # remark that W(s) = Tr(A(s_1)...A(s_N)) = Tr(L(1))
+        W[S] = np.trace(RL_matrices[1]) # := W(S)
         # Wp[m] (p='prime') := W(S'_m) = W after flipping spin s_m
         Wp = [None] + [0 for i in range(N)]
-
         # traverse from s_1 to s_N and do metropolis based flips:
         for m in range(1,len(state)):
-            # W(S'_m) = Tr(A(-s_m)*L(m+1)*R(m-1)) GET B(m) HERE!!!
-            Aflip = site_matrices[i].get(1-state[i])  # = A(-s_m)
-            # Bm = matmul(RL_matrices[m+1], RL_matrices[m-1])
-            Wp[m] = np.trace(matmul(Aflip, matmul(RL_matrices[m+1], \
-                    RL_matrices[m-1])))
+            # B(m) = L(m+1)*R(m-1)
+            Bm = matmul(RL_matrices[m+1], RL_matrices[m-1])
+            # ∂W(S)/∂[A(S)]^s_{ij} = ∑_{m} [(B(m) + B(m)^t)/2]_{ij}
+            # ALARM: DISTINGUISHING UP AND DOWN????????????????????????
+            # ASK A(s_m): ar you up or down?
+            # when up, then add (Bm + Bm.T) / 2 to (delta_s,s_m in eq. (9)) to Wderiv[sweep S, site m, matrix up]
+            # otherwise, add to Wderiv[sweep S, site m, matrix down]
+            Wderiv[S][m][state[m]] += (Bm + Bm.T) / 2
+            # get A(-s_m)
+            Aflip = site_matrices[i].get(1-state[i])
+            # W(S'_m) = Tr(A(-s_m)*B(m))
+            Wp[m] = np.trace(matmul(Aflip, Bm))
             # change of flipping a spin
-            Pflip = min((Wp[m]*Wp[m])/(W*W) ,1)
+            Pflip = min((Wp[m]*Wp[m])/(W[S]*W[S]) ,1)
             # God roles a dice,
             if random.random() < Pflip:
-                state[i] = 1 - state[i]  # flips a spin
+                state[i] = 1 - state[i]  # and flips a spin
             # R(m) = R(m-1) * A(s_m)
             RL_matrices[m] = matmul(RL_matrices[m-1], current_site_mat(m))
-
-        print('Wp:', Wp)
 
         # get the estimator E_z(S) for the diagonal contribution to H_TFIM
         M = 0
@@ -143,15 +153,28 @@ def main():
             else:
                 M -= 1
         # final result for the estimator E_z
-        E_z[sweep] = J * M
+        E_z[S] = J * M
 
         # get the estimator E_x(S) for the non diagonal contribution to H_TFIM
-        E_x[sweep] = J * g *sum([Wp[i] for i in range(1,len(Wp))]) / W
+        E_x[S] = J * g *sum([Wp[i] for i in range(1,len(Wp))]) / W[S]
 
         # transverse from s_N to s_1 and evaluate the energy and its derivative:
         for m in range(N,0,-1):
             # L(m) = A(s_m) * L(m+1)
             RL_matrices[m] = matmul(current_site_mat(m), RL_matrices[m+1])
+
+    # calculate the ensemble avarages
+    Z = sum(W * W)                       # Z = ∑_{S} W²(S)    
+    E = (1/Z) * sum(W*W * (E_z + E_x))   # E = <E_z(S) + E_x(S)>_{S}
+    # <[Δ(S)]^s_{ij}> = 1/Z * ∑_{S} [W(S) * ∂W(S)/∂[A(S)]^s_{ij}]
+    Delta = (1/Z) * sum(W * Wderiv)
+    # ∂E/∂[A]^s_{ij} = 2/Z * ∑_{S} [W(S) * E(S) * ∂W(S)/∂[A(S)]^s_{ij}]
+    #                  - 2 * <[Δ(S)]^s_{ij}> * E
+    Ederiv = (2/Z) * sum(W * (E_z + E_x) * Wderiv) - 2 * Delta * E
+
+    # [A(S)]^s_{ij} -> [A(S)]^s_{ij} - δ(k) * r^s_{ij} * sgn(∂E/∂[A]^s_{ij})
+    r = rand_sym_mat(D)
+
 
 
 
