@@ -124,7 +124,13 @@ def main():
                     # R(m) = R(m-1) * A(s_m)
                     RL_matrices[m] = matmul(RL_matrices[m-1], current_site_mat(m))
 
-                # get the estimator E_z(S) for the diagonal contribution to H_TFIM
+                # transverse from s_(N-1) to s_0 and evaluate the energy
+                # and its derivative:
+                for m in backwards:
+                    # L(m) = A(s_m) * L(m+1)
+                    RL_matrices[m] = matmul(current_site_mat(m), RL_matrices[m+1])
+
+                # get estimator E_z(S) for the diagonal contribution to H_TFIM
                 M = 0
                 for i in forwards:
                     # true if anti-parallel
@@ -135,17 +141,12 @@ def main():
                 # final result for the estimator E_z
                 E_z[S] = J * M
 
-                # get the estimator E_x(S) for the non diagonal contribution to H_TFIM
+                # get estimator E_x(S) for the non diagonal contribution to H_TFIM
                 E_x[S] = J * g * sum(Wp) / W[S]
 
-                # transverse from s_(N-1) to s_0 and evaluate the energy and its derivative:
-                for m in backwards:
-                    # L(m) = A(s_m) * L(m+1)
-                    RL_matrices[m] = matmul(current_site_mat(m), RL_matrices[m+1])
-
+                # update estimator sums for ∂W(S)/∂[A(S)]^s_{ij} related quantities
                 XW += W[S] * X_S               # remark that W[S] is a scalar
                 XWE += XW * (E_z[S] + E_x[S])  # remark that E_x/z[S] are scalars
-
 
             # calculate the ensemble avarages:
             Z = sum(W * W)                       # Z = ∑_{S} W²(S)
@@ -153,31 +154,22 @@ def main():
             # add the newly evaluated energy to the results
             E_simulation_bin.append(E)
 
-            # ∂E/∂[A]^s_{ij} = 2 * <[E(S) * [Δ(S)]^s_{ij}]> - 2 * <[Δ(S)]^s_{ij}> * E
+            # ∂E/∂[A]^s_{ij} = 2 * <[E(S)*[Δ(S)]^s_{ij}]> - 2 * <[Δ(S)]^s_{ij}>*E
             #                = 2/Z * ∑_{S} [W(S) * E(S) * ∂W(S)/∂[A(S)]^s_{ij}]
             #                  - 1/Z * ∑_{S} [W(S) * ∂W(S)/∂[A(S)]^s_{ij}]
             Ederiv = (2/Z) * XWE - (1/Z) * XW
 
-            # # checks
-            # print('W: ', W)
-            # print('W*W:', W * W)
-            # print('E:', E)
-            # print('Z: ', Z)
-            # print('Ederiv:', Ederiv)
-
-            # [A(S)]^s_{ij} -> [A(S)]^s_{ij} - δ(k) * r^s_{ij} * sgn(∂E/∂[A]^s_{ij})
+            # [A(S)]^s_{ij} -> [A(S)]^s_{ij} - δ(k)*r^s_{ij}*sgn(∂E/∂[A]^s_{ij})
             # COMPLETION OF THIS EQUATION THOROUGHLY VERIFIED, OK!
-            r = np.array([Site.random(D) for i in forwards])
-
-            # # checks
-            # print('r: \n', r)
-            # print('site_matrices: \n', site_matrices)
-            # #print('sign(Ederiv): \n', sign(Ederiv, iterable=True, isSite=True))
-            # print('r*sign(Ederiv):\n', multiply(r, sign(Ederiv, iterable=True, \
-            #     isSite=True), iterable=True, isSite=True))
-
+            r = np.array([Site.random(D) for i in forwards])                          # ALARM COST!!!
+            # Actual update of the matrix elements:
             site_matrices -= delta * multiply(r, sign(Ederiv, iterable=True, \
                 isSite=True), iterable=True, isSite=True)
+
+            # After each update, spin symmetry is imposed by enforcing equal
+            # eigenvalues for the A(s) and A(s) matrix.
+            for site in site_matrices:
+                site.up, site.down = enforce_equal_eigenvalues(site.up, site.down)
 
         # after G simulation bins, add the newly collected bin results
         # to ourconvergence results
@@ -186,7 +178,7 @@ def main():
 
         # check wether convergence is reached
         if k > 1:
-            if abs(Energies[-1] - Energies[-1]) < tol :
+            if abs(Energies[-1] - Energies[-2]) < tol or k > 3:
                 converged = True
 
         # print current estimations to monitor convergence
@@ -201,9 +193,11 @@ def main():
         F += F_0     # F = k * F_0
         G += G_0     # G = k * G_0
     
-    # print('site_matrices: \n', site_matrices)
-    print('Energies: ', Energies)
-    print('Standard deviations: ', StandardDeviations)
+    # print out the final result if convergence is reached
+    if converged:
+        print ('\nConvergence reached!\n' +
+            'Final results: E = %.8f, σ(E) = %.8f' \
+            % (Energies[-1],StandardDeviations[-1]))
 
 
 # don't run main if included 
