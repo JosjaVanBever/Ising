@@ -53,9 +53,18 @@ def main():
                        #    [# anti-parallel(S) - # parallel(S)]
     E_x = np.zeros(F)  # E_x(S) = Jg * ∑_{m} W(S'_m)/W(S)
     # estimator for the derivatives of the energy
+    # X_S = ∂W(S)/∂[A(S)]^s_{ij} (= W(S) * [Δ(S)]^s_{ij})
+    #     = ∑_{m} [(B(m) + B(m)^t)/2]_{ij} δ_{s_m,s}
     X_S = np.array([Site.zeros(D) for i in forwards])
+    # XW = ∑_{S} W(S) * X_S
     XW = np.array([Site.zeros(D) for i in forwards])
+    # XWE = ∑_{S} W(S) * E(S) * X_S
     XWE = np.array([Site.zeros(D) for i in forwards])
+
+#    Wderiv = [np.zeros((D,D)) for i in range(F)]   # WRONG DIMENSIONS!!!
+    # we should collect matrices per sweep S, per site m, per spin up/down at this site!!!
+        # W(S) * Δ(S) = ∂W(S)/∂A(S)
+        # <=> W(S) * [Δ(S)]^s_{ij} = ∂W(S)/∂[A(S)]^s_{ij}
 
     # START EXPERIMENTS
     # site_matrices2 = np.array([site.random(D) for i in forwards])
@@ -115,10 +124,7 @@ def main():
     # print(matmul(O_a.T,O_a))
     # print(matmul(O_b.T,O_b))
 
-#    Wderiv = [np.zeros((D,D)) for i in range(F)]   # WRONG DIMENSIONS!!!
-    # we should collect matrices per sweep S, per site m, per spin up/down at this site!!!
-        # W(S) * Δ(S) = ∂W(S)/∂A(S)
-        # <=> W(S) * [Δ(S)]^s_{ij} = ∂W(S)/∂[A(S)]^s_{ij}
+
 
     # do one simulation bin; i.e. collect enough information
     # to calculate the ensemble averages needed to update W(S)
@@ -177,18 +183,32 @@ def main():
         XW += W[S] * X_S               # remark that W[S] is a scalar
         XWE += XW * (E_z[S] + E_x[S])  # remark that E_x/z[S] are scalars
 
-    # calculate the ensemble avarages
-    Z = sum(W * W)                       # Z = ∑_{S} W²(S)    
+
+    # calculate the ensemble avarages:
+    Z = sum(W * W)                       # Z = ∑_{S} W²(S)
     E = (1/Z) * sum(W*W * (E_z + E_x))   # E = <E_z(S) + E_x(S)>_{S}
 
-    # <[Δ(S)]^s_{ij}> = 1/Z * ∑_{S} [W(S) * ∂W(S)/∂[A(S)]^s_{ij}]
-#    Delta = (1/Z) * sum(W * Wderiv)
-    # ∂E/∂[A]^s_{ij} = 2/Z * ∑_{S} [W(S) * E(S) * ∂W(S)/∂[A(S)]^s_{ij}]
-    #                  - 2 * <[Δ(S)]^s_{ij}> * E
-#    Ederiv = (2/Z) * sum(W * (E_z + E_x) * Wderiv) - 2 * Delta * E
+    # ∂E/∂[A]^s_{ij} = 2 * <[E(S) * [Δ(S)]^s_{ij}]> - 2 * <[Δ(S)]^s_{ij}> * E
+    #                = 2/Z * ∑_{S} [W(S) * E(S) * ∂W(S)/∂[A(S)]^s_{ij}]
+    #                  - 1/Z * ∑_{S} [W(S) * ∂W(S)/∂[A(S)]^s_{ij}]
+    Ederiv = (2/Z) * XWE - (1/Z) * XW
 
-    # [A(S)]^s_{ij} -> [A(S)]^s_{ij} - δ(k) * r^s_{ij} * sgn(∂E/∂[A]^s_{ij})
-    r = rand_sym_mat(D)
+    print('W: ', W)
+    print('W*W:', W * W)
+    print('E:', E)
+    print('Z: ', Z)
+    print('Ederiv:', Ederiv)
+
+
+#     # ∂E/∂[A]^s_{ij} = 2/Z * ∑_{S} [W(S) * E(S) * ∂W(S)/∂[A(S)]^s_{ij}]
+#     #                  - 2 * <[Δ(S)]^s_{ij}> * E
+# #    Ederiv = (2/Z) * sum(W * (E_z + E_x) * Wderiv) - 2 * Delta * E
+
+#     # [A(S)]^s_{ij} -> [A(S)]^s_{ij} - δ(k) * r^s_{ij} * sgn(∂E/∂[A]^s_{ij})
+#     r = rand_sym_mat(D)
+
+#     # <[Δ(S)]^s_{ij}> = 1/Z * ∑_{S} [W(S) * ∂W(S)/∂[A(S)]^s_{ij}]
+#     Delta = - 2 (1/Z) * XW
 
 
 

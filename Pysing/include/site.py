@@ -65,6 +65,11 @@ class Site():
         up = self.up + other.up
         down = self.down + other.down
         return Site.compose(up,down)
+    # '-' operator
+    def __sub__(self, other):
+        up = self.up - other.up
+        down = self.down - other.down
+        return Site.compose(up,down)
 
     # operator [] for getting
     # key: 0 == up, 1 == down
