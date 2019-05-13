@@ -1,92 +1,11 @@
+import sys, os 
+sys.path.append(os.path.abspath("./include"))
 from exact import get_options
+from include.mathtools import *
+from include.site import Site
 import numpy as np
 import numpy.random as random
 
-# shorthand for multiplication of 2 matrices
-def matmul(a,b):
-    return np.einsum('ij,jk->ik',a,b)
-
-# generate a random symmetric matrix
-def rand_sym_mat(D):
-    rand_mat = random.rand(D,D)
-    return (rand_mat + rand_mat.T) / 2
-
-# output: the orthonormalized eigenvector matrix
-def gram_schmidt_columns(X):
-    Q, R = np.linalg.qr(X)
-    return Q
-
-# average the eigenvalues for general a and b
-def enforce_equal_eigenvalues(a,b, symmetric=False):
-    # diagonalize a
-    eig_a, O_a = np.linalg.eigh(a)  # normalized
-    if not symmetric:
-        O_a = gram_schmidt_columns(vec_a)
-    # diagonalize b
-    eig_b, O_b = np.linalg.eigh(b)  # normalized
-    if not symmetric:
-        O_b = gram_schmidt_columns(vec_b)
-    # average the eigenvalues
-    eig = (eig_a + eig_b) / 2
-    # transform back
-    return matmul(np.einsum('ij,j->ij', O_a, eig),O_a.T), \
-           matmul(np.einsum('ij,j->ij', O_b, eig),O_b.T)
-
-
-# class that contains the matrices A(s=up) and
-# A(s=down) for a given site s
-class site():
-    # constructor
-    def __init__(self, D, random=True):
-        # set up and down to real symmetric matrices
-        # with equal eigenvalues (spin symmetry)
-        if random:
-            self.up, self.down = enforce_equal_eigenvalues(
-                rand_sym_mat(D),rand_sym_mat(D), symmetric=True)
-        else:
-            self.up, self.down = enforce_equal_eigenvalues(
-                np.zeros((D,D)),np.zeros((D,D)), symmetric=True)
-    # predefined constructor cases
-    @classmethod
-    def zeros(cls, D):
-        return cls(D, random=False)
-    @classmethod
-    def random(cls, D):
-        return cls(D, random=True)
-    # get the up (i=0) or down (i=1) matrix
-    def get(self,i):
-        return [self.up, self.down][i]
-    # set the up (i=0) or down (i=1) matrix
-    def set(self,i,value):
-        if i == 0:
-            self.up = value
-        elif i == 1:
-            self.down = value
-    # get a random matrix
-    def rand(self):
-        return self.get(random.randint(2))
-    # '+=' operator
-    def __iadd__(self,other):
-        print('CHECK: ', self, other)
-        self.up += other.up
-        self.down += other.down
-        print('CHECK: ', self, other)
-        return self
-    def __getitem__(self, key):
-        return [self.up, self.down][key]
-        # if key == 0:
-        #     return self.up
-        # elif hey == 1:
-        #     return self.down
-    def __setitem__(self, key, value):
-        if key == 0:
-            self.up = value
-        elif hey == 1:
-            self.down = value
-    # representation (for printing)
-    def __repr__(self):
-        return "Up: %r\nDown:%r\n" \
-                % (self.up, self.down)
 
 def main():
     # read the parameters from input
@@ -107,7 +26,7 @@ def main():
     # eigenvalues (due to spin symmetry), but does not lead to
     # normalized probabilities p_i: ∑_i p_i != 1.
     # Expectation values should therefore always be normalized.
-    site_matrices = [site.random(D) for i in forwards]
+    site_matrices = np.array([Site.random(D) for i in forwards])
 
     # the current state of the system is described by an array
     # of bits: 0 = up (= σ^z[0,0]), 1 = down (= σ^z[1,1])
@@ -116,7 +35,7 @@ def main():
 
     # help function to get the current matrix for site i
     def current_site_mat(i):
-        return site_matrices[i].get(state[i])
+        return site_matrices[i][state[i]]
 
     # RL_matrices[m] = L(m) or R(m) depending on the conditions
     # Initialize L(m) = A(s_m), L/R(-1) = L/R(N) = 1
@@ -134,28 +53,67 @@ def main():
                        #    [# anti-parallel(S) - # parallel(S)]
     E_x = np.zeros(F)  # E_x(S) = Jg * ∑_{m} W(S'_m)/W(S)
     # estimator for the derivatives of the energy
-    X_S = np.array([site.zeros(D) for i in forwards])
+    X_S = np.array([Site.zeros(D) for i in forwards])
+    XW = np.array([Site.zeros(D) for i in forwards])
+    XWE = np.array([Site.zeros(D) for i in forwards])
 
-    print(state)
+    # START EXPERIMENTS
+    # site_matrices2 = np.array([site.random(D) for i in forwards])
+
     print(site_matrices)
-    print(X_S)
+    # print(site_matrices2)
+    # print(X_S)
+    # print('---------------------')
 
-    # X_S[0].set(0,site_matrices[0].get(0))
-    # #X_S[0].up += site_matrices[0].get(0)
+    # site_matrices2 += site_matrices
+    # X_S += site_matrices
 
     # print(site_matrices)
+    # print(site_matrices2)
     # print(X_S)
+    # print('---------------------')
 
-    X_S[1][0] += site_matrices[1][0]
+    site_matrices = 7 * site_matrices
 
     print(site_matrices)
-    print(X_S)
+    # print(site_matrices2)
+    # print(X_S)
+    # print('---------------------')
 
-    eig_a, O_a = np.linalg.eigh(site_matrices[0].get(0))
-    eig_b, O_b = np.linalg.eigh(site_matrices[0].get(1))
-    print(eig_a, eig_b)
-    print(matmul(O_a.T,O_a))
-    print(matmul(O_b.T,O_b))
+    # # X_S[0].set(0,site_matrices[0].get(0))
+    # # #X_S[0].up += site_matrices[0].get(0)
+
+    # # print(site_matrices)
+    # # print(X_S)
+
+    # #X_S += site_matrices
+
+    # a = np.array([site.zeros(D) for i in forwards])
+    # a = a + X_S
+
+
+
+    # print(a)
+
+    # X_S[1][0] += site_matrices[1][0]
+
+    # print(a)
+
+    # # site_matrices[1][0] += site_matrices[1][0]
+
+    # # print(site_matrices)
+    # # print(X_S)
+
+    # #X_S += site_matrices
+
+    # # print(site_matrices)
+    # # print(X_S)
+
+    # eig_a, O_a = np.linalg.eigh(site_matrices[0][0])
+    # eig_b, O_b = np.linalg.eigh(site_matrices[0][1])
+    # print(eig_a, eig_b)
+    # print(matmul(O_a.T,O_a))
+    # print(matmul(O_b.T,O_b))
 
 #    Wderiv = [np.zeros((D,D)) for i in range(F)]   # WRONG DIMENSIONS!!!
     # we should collect matrices per sweep S, per site m, per spin up/down at this site!!!
@@ -175,6 +133,9 @@ def main():
             # B(m) = L(m+1)*R(m-1)
             Bm = matmul(RL_matrices[m+1], RL_matrices[m-1])
 
+            # NEW
+            X_S[m][state[m]] += (Bm + Bm.T) / 2
+
             # ∂W(S)/∂[A(S)]^s_{ij} = ∑_{m} [(B(m) + B(m)^t)/2]_{ij}
             # ALARM: DISTINGUISHING UP AND DOWN????????????????????????
             # ASK A(s_m): ar you up or down?
@@ -183,7 +144,7 @@ def main():
 #            Wderiv[S][m][state[m]] += (Bm + Bm.T) / 2
 
             # get A(-s_m)
-            Aflip = site_matrices[m].get(1-state[m])
+            Aflip = site_matrices[m][1-state[m]]
             # W(S'_m) = Tr(A(-s_m)*B(m))
             Wp[m] = np.trace(matmul(Aflip, Bm))
             # change of flipping a spin
@@ -212,6 +173,9 @@ def main():
         for m in backwards:
             # L(m) = A(s_m) * L(m+1)
             RL_matrices[m] = matmul(current_site_mat(m), RL_matrices[m+1])
+
+        XW += W[S] * X_S               # remark that W[S] is a scalar
+        XWE += XW * (E_z[S] + E_x[S])  # remark that E_x/z[S] are scalars
 
     # calculate the ensemble avarages
     Z = sum(W * W)                       # Z = ∑_{S} W²(S)    
