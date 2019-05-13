@@ -37,11 +37,22 @@ def enforce_equal_eigenvalues(a,b, symmetric=False):
 # A(s=down) for a given site s
 class site():
     # constructor
-    def __init__(self, D):
+    def __init__(self, D, random=True):
         # set up and down to real symmetric matrices
         # with equal eigenvalues (spin symmetry)
-        self.up, self.down = enforce_equal_eigenvalues(
-                rand_sym_mat(D),rand_sym_mat(D), True)
+        if random:
+            self.up, self.down = enforce_equal_eigenvalues(
+                rand_sym_mat(D),rand_sym_mat(D), symmetric=True)
+        else:
+            self.up, self.down = enforce_equal_eigenvalues(
+                np.zeros((D,D)),np.zeros((D,D)), symmetric=True)
+    # predefined constructor cases
+    @classmethod
+    def zeros(cls, D):
+        return cls(D, random=False)
+    @classmethod
+    def random(cls, D):
+        return cls(D, random=True)
     # get the up (i=0) or down (i=1) matrix
     def get(self,i):
         return [self.up, self.down][i]
@@ -68,7 +79,7 @@ def main():
     # eigenvalues (due to spin symmetry), but does not lead to
     # normalized probabilities p_i: ∑_i p_i != 1.
     # Expectation values should therefore always be normalized.
-    site_matrices = [None] + [site(D) for i in range(N)]
+    site_matrices = [None] + [site.random(D) for i in range(N)]
     # due to the dummy, site_matrices[1] corresponds to the 1st site
 
     # site_matrices print as check
@@ -105,6 +116,7 @@ def main():
                        # [# anti-parallel(S) - # parallel(S)]
     E_x = np.zeros(F)  # E_x(S) = Jg * ∑_{m} W(S'_m)/W(S)
     # estimator for the derivatives of the energy
+    X_S = np.array(['None'] + [site.zeros(D) for i in range(N)])
     Wderiv = [np.zeros((D,D)) for i in range(F)]   # WRONG DIMENSIONS!!!
     # we should collect matrices per sweep S, per site m, per spin up/down at this site!!!
         # W(S) * Δ(S) = ∂W(S)/∂A(S)
@@ -126,7 +138,7 @@ def main():
             # ASK A(s_m): ar you up or down?
             # when up, then add (Bm + Bm.T) / 2 to (delta_s,s_m in eq. (9)) to Wderiv[sweep S, site m, matrix up]
             # otherwise, add to Wderiv[sweep S, site m, matrix down]
-            Wderiv[S][m][state[m]] += (Bm + Bm.T) / 2
+#            Wderiv[S][m][state[m]] += (Bm + Bm.T) / 2
             # get A(-s_m)
             Aflip = site_matrices[i].get(1-state[i])
             # W(S'_m) = Tr(A(-s_m)*B(m))
@@ -167,10 +179,10 @@ def main():
     Z = sum(W * W)                       # Z = ∑_{S} W²(S)    
     E = (1/Z) * sum(W*W * (E_z + E_x))   # E = <E_z(S) + E_x(S)>_{S}
     # <[Δ(S)]^s_{ij}> = 1/Z * ∑_{S} [W(S) * ∂W(S)/∂[A(S)]^s_{ij}]
-    Delta = (1/Z) * sum(W * Wderiv)
+#    Delta = (1/Z) * sum(W * Wderiv)
     # ∂E/∂[A]^s_{ij} = 2/Z * ∑_{S} [W(S) * E(S) * ∂W(S)/∂[A(S)]^s_{ij}]
     #                  - 2 * <[Δ(S)]^s_{ij}> * E
-    Ederiv = (2/Z) * sum(W * (E_z + E_x) * Wderiv) - 2 * Delta * E
+#    Ederiv = (2/Z) * sum(W * (E_z + E_x) * Wderiv) - 2 * Delta * E
 
     # [A(S)]^s_{ij} -> [A(S)]^s_{ij} - δ(k) * r^s_{ij} * sgn(∂E/∂[A]^s_{ij})
     r = rand_sym_mat(D)
