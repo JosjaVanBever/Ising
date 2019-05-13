@@ -19,8 +19,8 @@ class Site():
             self.up, self.down = enforce_equal_eigenvalues(
                 np.zeros((D,D)),np.zeros((D,D)), symmetric=True)
         elif up is not None and down is not None:
-            self.up = np.copy(up)
-            self.down = np.copy(down)
+            self.up = np.copy(up)  # WAS np.copy(up)
+            self.down = np.copy(down)  # WAS np.copy(down)
 
     # predefined constructor cases:
     # - fill with zeros
@@ -50,6 +50,7 @@ class Site():
         return self.get(random.randint(2))
 
     # '*' operator (scalar multiplication)
+    # @profile
     def __mul__(self, scalar):
         up = self.up * scalar
         down = self.down * scalar
@@ -57,6 +58,7 @@ class Site():
     __rmul__ = __mul__
 
     # '+=' operator
+    # @profile
     def __iadd__(self,other):
         self.up += other.up
         self.down += other.down
@@ -68,6 +70,7 @@ class Site():
         return self
 
     # '+' operator
+    # @profile
     def __add__(self,other):
         up = self.up + other.up
         down = self.down + other.down
@@ -120,17 +123,31 @@ def multiply(a,b, iterable=False, isSite=False):
         return np.multiply(a,b)
 
 def main():
-    # some debugging for multiply
     x = Site.random(2)
     y = Site.random(2)
-    print('x:\n', x, '\ny:\n', y)
-    a = np.multiply(x.up, y.up)
-    b = np.multiply(x.down, y.down)
-    print('a:\n', a, '\nb:\n', b)
-    z1 = Site.compose(a,b)
-    z2 = multiply(x,y, isSite=True)
-    print('z1:\n', z1)
-    print('z2:\n', z2)
+    z = Site.random(2)
+    print('x:\n', x, '\ny:\n', y, '\nz:\n', z)
+
+    z += 3 * x
+    print('z:\n', z)
+
+    y += x
+    print('y:\n', y)
+    x = Site.zeros(2)
+    print('y:\n', y)
+    print('z:\n', z)
+
+    # # some debugging for multiply
+    # x = Site.random(2)
+    # y = Site.random(2)
+    # print('x:\n', x, '\ny:\n', y)
+    # a = np.multiply(x.up, y.up)
+    # b = np.multiply(x.down, y.down)
+    # print('a:\n', a, '\nb:\n', b)
+    # z1 = Site.compose(a,b)
+    # z2 = multiply(x,y, isSite=True)
+    # print('z1:\n', z1)
+    # print('z2:\n', z2)
 
 # don't run main if included 
 if __name__ == "__main__":

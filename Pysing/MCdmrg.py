@@ -5,15 +5,27 @@ from include.mathtools import *
 from include.site import *
 import numpy as np
 import numpy.random as random
+import time
+from datetime import datetime
 
+# # A = B * c
+# def add_rescaled_in_place()
 
 def main():
+    deltatx = 0
+    deltaty = 0
+    deltatz = 0
+    deltatv = 0
+
+    # get start time
+    start = time.time()
+
     # read the parameters from input
     # N: the amount of sites
     # J, g: parameters of H_{TFIM}
     # D: bond dimension
     N, J, g, D = get_options(True)
-    F = F_0 = 80 # e.g. 100
+    F = F_0 = 100 # e.g. 100
     G = G_0 = 10  # e.g. 10
     delta = delta_0 = 0.05
     Q = 0.95
@@ -26,7 +38,7 @@ def main():
         'Hamiltonian parameters: J = %.2f, g = %.2f\n' % (J,g) +
         'Bond dimension D = %d\n' % (D) +
         'Initial convergence parameters: ' +
-        'δ = %d, G = %d, F = %d\n' % (delta,G,F) +
+        'δ = %.2f, G = %d, F = %d\n' % (delta,G,F) +
         'Tolerance on E convergence: %.1e\n' % (tol))
     sys.stdout.flush()  # explicitely flush
 
@@ -100,12 +112,16 @@ def main():
             # Each step of a simulation bin starts and ends
             # with RL_matrices[m] = L(m).
             for S in range(F):
+
                 # remark that W(s) = Tr(A(s_0)...A(s_(N-1))) = Tr(L(0))
                 W[S] = np.trace(RL_matrices[0]) # := W(S)
                 # Wp[m] (p='prime') := W(S'_m) = W after flipping spin s_m
                 Wp = [0 for i in forwards]
                 # traverse from s_0 to s_(N-1) and do metropolis based flips:
                 for m in forwards:
+
+                    # testy = time.time()
+
                     # B(m) = L(m+1)*R(m-1)
                     Bm = matmul(RL_matrices[m+1], RL_matrices[m-1])
                     # ∂W(S)/∂[A(S)]^s_{ij} = ∑_{m} [(B(m) + B(m)^t)/2]_{ij}
@@ -124,6 +140,8 @@ def main():
                     # R(m) = R(m-1) * A(s_m)
                     RL_matrices[m] = matmul(RL_matrices[m-1], current_site_mat(m))
 
+                    # deltaty += time.time() - testy
+
                 # transverse from s_(N-1) to s_0 and evaluate the energy
                 # and its derivative:
                 for m in backwards:
@@ -141,12 +159,32 @@ def main():
                 # final result for the estimator E_z
                 E_z[S] = J * M
 
+                # testx = time.time()
+
                 # get estimator E_x(S) for the non diagonal contribution to H_TFIM
                 E_x[S] = J * g * sum(Wp) / W[S]
+  
+                # testv = time.time()
+                # deltatv += time.time() - testv
+
+                # testz = time.time()
 
                 # update estimator sums for ∂W(S)/∂[A(S)]^s_{ij} related quantities
-                XW += W[S] * X_S               # remark that W[S] is a scalar
-                XWE += XW * (E_z[S] + E_x[S])  # remark that E_x/z[S] are scalars
+                curW = W[S]
+                curE = E_z[S] + E_x[S]
+                for i in forwards:
+                    XW[i].up += curW * X_S[i].up
+                    XW[i].down += curW * X_S[i].down
+                    XWE[i].up += curE * XW[i].up
+                    XWE[i].down += curE * XW[i].down
+
+                # Old code:
+                # XW += W[S] * X_S               # remark that W[S] is a scalar
+                # XWE += XW * (E_z[S] + E_x[S])  # remark that E_x/z[S] are scalars
+                # Loops unfolded because bottleneck calculation.
+
+                # deltatz += time.time() - testz                
+                # deltatx += time.time() - testx
 
             # calculate the ensemble avarages:
             Z = sum(W * W)                       # Z = ∑_{S} W²(S)
@@ -169,7 +207,7 @@ def main():
             # After each update, spin symmetry is imposed by enforcing equal
             # eigenvalues for the A(s) and A(s) matrix.
             for site in site_matrices:
-                site.up, site.down = enforce_equal_eigenvalues(site.up, site.down)
+                site.up, site.down = enforce_equal_eigenvalues(site.up, site.down, symmetric=True)
 
         # after G simulation bins, add the newly collected bin results
         # to ourconvergence results
@@ -178,7 +216,7 @@ def main():
 
         # check wether convergence is reached
         if k > 1:
-            if abs(Energies[-1] - Energies[-2]) < tol or k > 3:
+            if abs(Energies[-1] - Energies[-2]) < tol:  # or k > 3:
                 converged = True
 
         # print current estimations to monitor convergence
@@ -198,6 +236,16 @@ def main():
         print ('\nConvergence reached!\n' +
             'Final results: E = %.8f, σ(E) = %.8f' \
             % (Energies[-1],StandardDeviations[-1]))
+
+    # get end time
+    end = time.time()
+    print('[Finished in %.1fs]' % (end - start))
+    print(datetime.now())
+
+    print(deltatx)
+    print(deltaty)
+    print(deltatz)
+    print(deltatv)
 
 
 # don't run main if included 

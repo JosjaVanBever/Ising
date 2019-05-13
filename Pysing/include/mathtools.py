@@ -5,25 +5,25 @@ import numpy as np
 import numpy.random as random
 
 # shorthand for multiplication of 2 matrices
-@profile
+# @profile
 def matmul(a,b):
     return np.einsum('ij,jk->ik',a,b)
 
 # generate a random symmetric matrix
 # with elements in [0,1)
-@profile
+# @profile
 def rand_sym_mat(D):
     rand_mat = random.rand(D,D)
     return (rand_mat + rand_mat.T) / 2
 
 # output: the orthonormalized eigenvector matrix
-@profile
+# @profile
 def gram_schmidt_columns(X):
     Q, R = np.linalg.qr(X)
     return Q
 
 # average the eigenvalues for general a and b
-@profile
+# @profile
 def enforce_equal_eigenvalues(a,b, symmetric=False):
     # diagonalize a
     eig_a, O_a = np.linalg.eigh(a)  # normalized
