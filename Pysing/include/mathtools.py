@@ -9,6 +9,7 @@ def matmul(a,b):
     return np.einsum('ij,jk->ik',a,b)
 
 # generate a random symmetric matrix
+# with elements in [0,1)
 def rand_sym_mat(D):
     rand_mat = random.rand(D,D)
     return (rand_mat + rand_mat.T) / 2

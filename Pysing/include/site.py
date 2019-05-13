@@ -11,6 +11,7 @@ class Site():
     def __init__(self, D=None, random=False, zeros=False, up=None, down=None):
         # set up and down to real symmetric matrices
         # with equal eigenvalues (spin symmetry)
+        self.D = D
         if random:
             self.up, self.down = enforce_equal_eigenvalues(
                 rand_sym_mat(D),rand_sym_mat(D), symmetric=True)
@@ -21,10 +22,12 @@ class Site():
             self.up = np.copy(up)
             self.down = np.copy(down)
 
-    # predefined constructor cases
+    # predefined constructor cases:
+    # - fill with zeros
     @classmethod
     def zeros(cls, D):
         return cls(D=D, zeros=True)
+    # - fill with random r in [1,0)
     @classmethod
     def random(cls, D):
         return cls(D=D, random=True)
@@ -46,19 +49,23 @@ class Site():
     def rand(self):
         return self.get(random.randint(2))
 
-
-    # '+=' operator
-    def __iadd__(self,other):
-        self.up += other.up
-        self.down += other.down
-        return self
-
     # '*' operator (scalar multiplication)
     def __mul__(self, scalar):
         up = self.up * scalar
         down = self.down * scalar
         return Site.compose(up,down)
     __rmul__ = __mul__
+
+    # '+=' operator
+    def __iadd__(self,other):
+        self.up += other.up
+        self.down += other.down
+        return self
+    # '-=' operator
+    def __isub__(self,other):
+        self.up -= other.up
+        self.down -= other.down
+        return self
 
     # '+' operator
     def __add__(self,other):
@@ -87,3 +94,37 @@ class Site():
     def __repr__(self):
         return "Up: %r\nDown:%r\n" \
                 % (self.up, self.down)
+
+# generalization of the numpy.sign function to arrays and Site
+def sign(input, iterable=False, isSite=False):
+    if iterable:
+        return np.array([sign(element, iterable=False, \
+                isSite=isSite) for element in input])
+    elif isSite:
+        return Site.compose(np.sign(input.up), np.sign(input.down))
+    else:
+        return np.sign(object)
+
+# generalization of the numpy.multiply function to arrays and Site
+def multiply(a,b, iterable=False, isSite=False):
+    if iterable:
+        if len(a) != len(b):
+            raise ValueError('Input arrays should have equel length.')
+        else:
+            return np.array([multiply(a[i],b[i], iterable=False, \
+                    isSite=isSite) for i in range(len(a))])
+    elif isSite:
+        return Site.compose(np.multiply(a.up, b.up), \
+                    np.multiply(a.down, b.down))
+    else:
+        return np.multiply(a,b)
+
+x = Site.random(2)
+y = Site.random(2)
+print('x:\n', x, '\ny:\n', y)
+a = np.multiply(x.up, y.up)
+b = np.multiply(x.down, y.down)
+print('a:\n', a, '\nb:\n', b)
+# z = Site.compose(a,b)
+z = multiply(x,y, isSite=True)
+print('z:\n', z)

@@ -2,7 +2,7 @@ import sys, os
 sys.path.append(os.path.abspath("./include"))
 from exact import get_options
 from include.mathtools import *
-from include.site import Site
+from include.site import *
 import numpy as np
 import numpy.random as random
 
@@ -13,7 +13,9 @@ def main():
     # J, g: parameters of H_{TFIM}
     # D: bond dimension
     N, J, g, D = get_options(True)
-    F = 5
+    F = 100
+    delta = 0.05
+    Q = 0.95
 
     print(N, J, g, D)
 
@@ -61,71 +63,6 @@ def main():
     # XWE = ∑_{S} W(S) * E(S) * X_S
     XWE = np.array([Site.zeros(D) for i in forwards])
 
-#    Wderiv = [np.zeros((D,D)) for i in range(F)]   # WRONG DIMENSIONS!!!
-    # we should collect matrices per sweep S, per site m, per spin up/down at this site!!!
-        # W(S) * Δ(S) = ∂W(S)/∂A(S)
-        # <=> W(S) * [Δ(S)]^s_{ij} = ∂W(S)/∂[A(S)]^s_{ij}
-
-    # START EXPERIMENTS
-    # site_matrices2 = np.array([site.random(D) for i in forwards])
-
-    print(site_matrices)
-    # print(site_matrices2)
-    # print(X_S)
-    # print('---------------------')
-
-    # site_matrices2 += site_matrices
-    # X_S += site_matrices
-
-    # print(site_matrices)
-    # print(site_matrices2)
-    # print(X_S)
-    # print('---------------------')
-
-    site_matrices = 7 * site_matrices
-
-    print(site_matrices)
-    # print(site_matrices2)
-    # print(X_S)
-    # print('---------------------')
-
-    # # X_S[0].set(0,site_matrices[0].get(0))
-    # # #X_S[0].up += site_matrices[0].get(0)
-
-    # # print(site_matrices)
-    # # print(X_S)
-
-    # #X_S += site_matrices
-
-    # a = np.array([site.zeros(D) for i in forwards])
-    # a = a + X_S
-
-
-
-    # print(a)
-
-    # X_S[1][0] += site_matrices[1][0]
-
-    # print(a)
-
-    # # site_matrices[1][0] += site_matrices[1][0]
-
-    # # print(site_matrices)
-    # # print(X_S)
-
-    # #X_S += site_matrices
-
-    # # print(site_matrices)
-    # # print(X_S)
-
-    # eig_a, O_a = np.linalg.eigh(site_matrices[0][0])
-    # eig_b, O_b = np.linalg.eigh(site_matrices[0][1])
-    # print(eig_a, eig_b)
-    # print(matmul(O_a.T,O_a))
-    # print(matmul(O_b.T,O_b))
-
-
-
     # do one simulation bin; i.e. collect enough information
     # to calculate the ensemble averages needed to update W(S)
     # each step starts and ends with RL_matrices[m] = L(m)
@@ -138,16 +75,8 @@ def main():
         for m in forwards:
             # B(m) = L(m+1)*R(m-1)
             Bm = matmul(RL_matrices[m+1], RL_matrices[m-1])
-
-            # NEW
-            X_S[m][state[m]] += (Bm + Bm.T) / 2
-
             # ∂W(S)/∂[A(S)]^s_{ij} = ∑_{m} [(B(m) + B(m)^t)/2]_{ij}
-            # ALARM: DISTINGUISHING UP AND DOWN????????????????????????
-            # ASK A(s_m): ar you up or down?
-            # when up, then add (Bm + Bm.T) / 2 to (delta_s,s_m in eq. (9)) to Wderiv[sweep S, site m, matrix up]
-            # otherwise, add to Wderiv[sweep S, site m, matrix down]
-#            Wderiv[S][m][state[m]] += (Bm + Bm.T) / 2
+            X_S[m][state[m]] += (Bm + Bm.T) / 2
 
             # get A(-s_m)
             Aflip = site_matrices[m][1-state[m]]
@@ -158,6 +87,7 @@ def main():
             # God roles a dice,
             if random.random() < Pflip:
                 state[m] = 1 - state[m]  # and flips a spin
+
             # R(m) = R(m-1) * A(s_m)
             RL_matrices[m] = matmul(RL_matrices[m-1], current_site_mat(m))
 
@@ -193,22 +123,30 @@ def main():
     #                  - 1/Z * ∑_{S} [W(S) * ∂W(S)/∂[A(S)]^s_{ij}]
     Ederiv = (2/Z) * XWE - (1/Z) * XW
 
-    print('W: ', W)
-    print('W*W:', W * W)
-    print('E:', E)
-    print('Z: ', Z)
-    print('Ederiv:', Ederiv)
+    # # checks
+    # print('W: ', W)
+    # print('W*W:', W * W)
+    # print('E:', E)
+    # print('Z: ', Z)
+    # print('Ederiv:', Ederiv)
 
+    # [A(S)]^s_{ij} -> [A(S)]^s_{ij} - δ(k) * r^s_{ij} * sgn(∂E/∂[A]^s_{ij})
+    # COMPLETION OF THIS EQUATION THOROUGHLY VERIFIED, OK!
+    r = np.array([Site.random(D) for i in forwards])
 
-#     # ∂E/∂[A]^s_{ij} = 2/Z * ∑_{S} [W(S) * E(S) * ∂W(S)/∂[A(S)]^s_{ij}]
-#     #                  - 2 * <[Δ(S)]^s_{ij}> * E
-# #    Ederiv = (2/Z) * sum(W * (E_z + E_x) * Wderiv) - 2 * Delta * E
+    # # checks
+    # print('r: \n', r)
+    # print('site_matrices: \n', site_matrices)
+    # #print('sign(Ederiv): \n', sign(Ederiv, iterable=True, isSite=True))
+    # print('r*sign(Ederiv):\n', multiply(r, sign(Ederiv, iterable=True, \
+    #     isSite=True), iterable=True, isSite=True))
 
-#     # [A(S)]^s_{ij} -> [A(S)]^s_{ij} - δ(k) * r^s_{ij} * sgn(∂E/∂[A]^s_{ij})
-#     r = rand_sym_mat(D)
+    site_matrices -= delta * multiply(r, sign(Ederiv, iterable=True, \
+        isSite=True), iterable=True, isSite=True)
+    delta *= Q
+    
+    # print('site_matrices: \n', site_matrices)
 
-#     # <[Δ(S)]^s_{ij}> = 1/Z * ∑_{S} [W(S) * ∂W(S)/∂[A(S)]^s_{ij}]
-#     Delta = - 2 (1/Z) * XW
 
 
 
