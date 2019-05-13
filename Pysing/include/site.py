@@ -119,12 +119,19 @@ def multiply(a,b, iterable=False, isSite=False):
     else:
         return np.multiply(a,b)
 
-x = Site.random(2)
-y = Site.random(2)
-print('x:\n', x, '\ny:\n', y)
-a = np.multiply(x.up, y.up)
-b = np.multiply(x.down, y.down)
-print('a:\n', a, '\nb:\n', b)
-# z = Site.compose(a,b)
-z = multiply(x,y, isSite=True)
-print('z:\n', z)
+def main():
+    # some debugging for multiply
+    x = Site.random(2)
+    y = Site.random(2)
+    print('x:\n', x, '\ny:\n', y)
+    a = np.multiply(x.up, y.up)
+    b = np.multiply(x.down, y.down)
+    print('a:\n', a, '\nb:\n', b)
+    z1 = Site.compose(a,b)
+    z2 = multiply(x,y, isSite=True)
+    print('z1:\n', z1)
+    print('z2:\n', z2)
+
+# don't run main if included 
+if __name__ == "__main__":
+    main()
