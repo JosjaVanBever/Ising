@@ -56,9 +56,33 @@ class site():
     # get the up (i=0) or down (i=1) matrix
     def get(self,i):
         return [self.up, self.down][i]
+    # set the up (i=0) or down (i=1) matrix
+    def set(self,i,value):
+        if i == 0:
+            self.up = value
+        elif i == 1:
+            self.down = value
     # get a random matrix
     def rand(self):
         return self.get(random.randint(2))
+    # '+=' operator
+    def __iadd__(self,other):
+        print('CHECK: ', self, other)
+        self.up += other.up
+        self.down += other.down
+        print('CHECK: ', self, other)
+        return self
+    def __getitem__(self, key):
+        return [self.up, self.down][key]
+        # if key == 0:
+        #     return self.up
+        # elif hey == 1:
+        #     return self.down
+    def __setitem__(self, key, value):
+        if key == 0:
+            self.up = value
+        elif hey == 1:
+            self.down = value
     # representation (for printing)
     def __repr__(self):
         return "Up: %r\nDown:%r\n" \
@@ -111,6 +135,28 @@ def main():
     E_x = np.zeros(F)  # E_x(S) = Jg * ∑_{m} W(S'_m)/W(S)
     # estimator for the derivatives of the energy
     X_S = np.array([site.zeros(D) for i in forwards])
+
+    print(state)
+    print(site_matrices)
+    print(X_S)
+
+    # X_S[0].set(0,site_matrices[0].get(0))
+    # #X_S[0].up += site_matrices[0].get(0)
+
+    # print(site_matrices)
+    # print(X_S)
+
+    X_S[1][0] += site_matrices[1][0]
+
+    print(site_matrices)
+    print(X_S)
+
+    eig_a, O_a = np.linalg.eigh(site_matrices[0].get(0))
+    eig_b, O_b = np.linalg.eigh(site_matrices[0].get(1))
+    print(eig_a, eig_b)
+    print(matmul(O_a.T,O_a))
+    print(matmul(O_b.T,O_b))
+
 #    Wderiv = [np.zeros((D,D)) for i in range(F)]   # WRONG DIMENSIONS!!!
     # we should collect matrices per sweep S, per site m, per spin up/down at this site!!!
         # W(S) * Δ(S) = ∂W(S)/∂A(S)
