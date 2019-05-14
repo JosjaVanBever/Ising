@@ -30,7 +30,7 @@ def main():
     delta = delta_0 = 0.05
     Q = 0.95
     k = 1
-    tol = 1e-4
+    tol = 5e-3
 
     # print out the parameters
     print('INPUT PARAMETERS:\n' + 
@@ -117,30 +117,49 @@ def main():
                 W[S] = np.trace(RL_matrices[0]) # := W(S)
                 # Wp[m] (p='prime') := W(S'_m) = W after flipping spin s_m
                 Wp = [0 for i in forwards]
+
+                # precalculate for performance reasons
+                curW2 = W[S]*W[S]
+
                 # traverse from s_0 to s_(N-1) and do metropolis based flips:
                 for m in forwards:
 
-                    # testy = time.time()
+                    #testy = time.time()
+                    #testx = time.time()
 
                     # B(m) = L(m+1)*R(m-1)
                     Bm = matmul(RL_matrices[m+1], RL_matrices[m-1])
                     # ∂W(S)/∂[A(S)]^s_{ij} = ∑_{m} [(B(m) + B(m)^t)/2]_{ij}
                     X_S[m][state[m]] += (Bm + Bm.T) / 2
 
+                    #deltatx += time.time() - testx                    
+                    #testz = time.time()
+
                     # get A(-s_m)
                     Aflip = site_matrices[m][1-state[m]]
                     # W(S'_m) = Tr(A(-s_m)*B(m))
-                    Wp[m] = np.trace(matmul(Aflip, Bm))
+                    Wp[m] = np.einsum('ij,ji', Aflip, Bm)
+                    # Old code was:
+                    # Wp[m] = np.trace(matmul(Aflip, Bm))
+                    
+                    #deltatz += time.time() - testz
+                    #testv = time.time()
+
+                    # precalculate for performance reasons
+                    curWp = Wp[m]
+
                     # change of flipping a spin
-                    Pflip = min((Wp[m]*Wp[m])/(W[S]*W[S]) ,1)
+                    Pflip = min((curWp*curWp)/(curW2) ,1)
                     # God roles a dice,
                     if random.random() < Pflip:
                         state[m] = 1 - state[m]  # and flips a spin
 
+                    #deltatv += time.time() - testv
+
                     # R(m) = R(m-1) * A(s_m)
                     RL_matrices[m] = matmul(RL_matrices[m-1], current_site_mat(m))
 
-                    # deltaty += time.time() - testy
+                    #deltaty += time.time() - testy
 
                 # transverse from s_(N-1) to s_0 and evaluate the energy
                 # and its derivative:
@@ -159,15 +178,8 @@ def main():
                 # final result for the estimator E_z
                 E_z[S] = J * M
 
-                # testx = time.time()
-
                 # get estimator E_x(S) for the non diagonal contribution to H_TFIM
                 E_x[S] = J * g * sum(Wp) / W[S]
-  
-                # testv = time.time()
-                # deltatv += time.time() - testv
-
-                # testz = time.time()
 
                 # update estimator sums for ∂W(S)/∂[A(S)]^s_{ij} related quantities
                 curW = W[S]
@@ -181,10 +193,7 @@ def main():
                 # Old code:
                 # XW += W[S] * X_S               # remark that W[S] is a scalar
                 # XWE += XW * (E_z[S] + E_x[S])  # remark that E_x/z[S] are scalars
-                # Loops unfolded because bottleneck calculation.
-
-                # deltatz += time.time() - testz                
-                # deltatx += time.time() - testx
+                # Loops unfolded because bottleneck calculation.                
 
             # calculate the ensemble avarages:
             Z = sum(W * W)                       # Z = ∑_{S} W²(S)
@@ -216,7 +225,7 @@ def main():
 
         # check wether convergence is reached
         if k > 1:
-            if abs(Energies[-1] - Energies[-2]) < tol:  # or k > 3:
+            if abs(Energies[-1] - Energies[-2]) < tol: # or k > 3:
                 converged = True
 
         # print current estimations to monitor convergence
