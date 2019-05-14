@@ -24,7 +24,7 @@ def gram_schmidt_columns(X):
 
 # average the eigenvalues for general a and b
 # @profile
-def enforce_equal_eigenvalues(a,b, symmetric=False):
+def enforce_equal_eigenvalues(a,b, symmetric=False, normalize=False):
     # diagonalize a
     eig_a, O_a = np.linalg.eigh(a)  # normalized
     if not symmetric:
@@ -35,6 +35,9 @@ def enforce_equal_eigenvalues(a,b, symmetric=False):
         O_b = gram_schmidt_columns(O_b)
     # average the eigenvalues
     eig = (eig_a + eig_b) / 2
+    if normalize:
+        # normalize the largest eigenvalue to 1
+        eig /= eig[0]
     # transform back
     return matmul(np.einsum('ij,j->ij', O_a, eig),O_a.T), \
            matmul(np.einsum('ij,j->ij', O_b, eig),O_b.T)

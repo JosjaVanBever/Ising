@@ -11,6 +11,9 @@ from datetime import datetime
 # # A = B * c
 # def add_rescaled_in_place()
 
+def check_symmetric(a, rtol=1e-05, atol=1e-08):
+    return np.allclose(a, a.T, rtol=rtol, atol=atol)
+
 def main():
     deltatx = 0
     deltaty = 0
@@ -52,7 +55,8 @@ def main():
     # normalized probabilities p_i: ∑_i p_i != 1.
     # Expectation values should therefore always be normalized.
     # These matrices will further be denoted by 'A(S)'.'
-    site_matrices = np.array([Site.random(D) for i in forwards])
+    site_matrices = np.array([Site.random(D, normalize=True) \
+            for i in forwards])
 
     # the current state of the system is described by an array
     # of bits: 0 = up (= σ^z[0,0]), 1 = down (= σ^z[1,1])
@@ -77,6 +81,7 @@ def main():
     StandardDeviations = []
 
     # is the calculation converged?
+    converged_counter = 0
     converged = False
 
     # start convergence:
@@ -208,7 +213,7 @@ def main():
 
             # [A(S)]^s_{ij} -> [A(S)]^s_{ij} - δ(k)*r^s_{ij}*sgn(∂E/∂[A]^s_{ij})
             # COMPLETION OF THIS EQUATION THOROUGHLY VERIFIED, OK!
-            r = np.array([Site.random(D) for i in forwards])                          # ALARM COST!!!
+            r = np.array([Site.random(D, spinsym=True, normalize=True) for i in forwards])                          # ALARM COST!!!
             # Actual update of the matrix elements:
             site_matrices -= delta * multiply(r, sign(Ederiv, iterable=True, \
                 isSite=True), iterable=True, isSite=True)
@@ -216,7 +221,10 @@ def main():
             # After each update, spin symmetry is imposed by enforcing equal
             # eigenvalues for the A(s) and A(s) matrix.
             for site in site_matrices:
-                site.up, site.down = enforce_equal_eigenvalues(site.up, site.down, symmetric=True)
+                site.up, site.down = enforce_equal_eigenvalues(site.up, \
+                        site.down, symmetric=True, normalize=True)
+                # assert(check_symmetric(site.up))
+                # assert(check_symmetric(site.down))
 
         # after G simulation bins, add the newly collected bin results
         # to ourconvergence results
@@ -225,7 +233,11 @@ def main():
 
         # check wether convergence is reached
         if k > 1:
-            if abs(Energies[-1] - Energies[-2]) < tol: # or k > 3:
+            if abs(Energies[-1] - Energies[-2]) < tol:  # or k > 6:
+                converged_counter += 1
+            else:
+                converged_counter = max(converged_counter - 1, 0)
+            if converged_counter > 3:
                 converged = True
 
         # print current estimations to monitor convergence
@@ -251,10 +263,10 @@ def main():
     print('[Finished in %.1fs]' % (end - start))
     print(datetime.now())
 
-    print(deltatx)
-    print(deltaty)
-    print(deltatz)
-    print(deltatv)
+    #print(deltatx)
+    #print(deltaty)
+    #print(deltatz)
+    #print(deltatv)
 
 
 # don't run main if included 

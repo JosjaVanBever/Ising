@@ -8,16 +8,19 @@ from mathtools import *
 class Site():
 
     # constructor
-    def __init__(self, D=None, random=False, zeros=False, up=None, down=None):
+    def __init__(self, D=None, random=False, spinsym=True, \
+                normalize=False, zeros=False, up=None, down=None):
         # set up and down to real symmetric matrices
         # with equal eigenvalues (spin symmetry)
         self.D = D
         if random:
-            self.up, self.down = enforce_equal_eigenvalues(
-                rand_sym_mat(D),rand_sym_mat(D), symmetric=True)
+            if spinsym:
+                self.up, self.down = enforce_equal_eigenvalues(
+                    rand_sym_mat(D),rand_sym_mat(D), symmetric=True)
+            else:
+                self.up, self.down = rand_sym_mat(D),rand_sym_mat(D)
         elif zeros:
-            self.up, self.down = enforce_equal_eigenvalues(
-                np.zeros((D,D)),np.zeros((D,D)), symmetric=True)
+            self.up, self.down = np.zeros((D,D)),np.zeros((D,D))
         elif up is not None and down is not None:
             self.up = np.copy(up)  # WAS np.copy(up)
             self.down = np.copy(down)  # WAS np.copy(down)
@@ -29,8 +32,9 @@ class Site():
         return cls(D=D, zeros=True)
     # - fill with random r in [1,0)
     @classmethod
-    def random(cls, D):
-        return cls(D=D, random=True)
+    def random(cls, D, spinsym=True, normalize=False):
+        return cls(D=D, random=True, spinsym=spinsym, \
+                normalize=normalize)
     @classmethod
     def compose(cls,up,down):
         return cls(up=up, down=down)
