@@ -112,11 +112,12 @@ def get_lowest_modes(hamiltonian, k):
     # return the eigenvalues and eigenvectors
     return eigsh(hamiltonian.mat, k=min(k,hamiltonian.dim-1), which='SA')
 
-def analyse_spectrum(L, J, g, print_dominant=False, threshold=0.12):
+def analyse_spectrum(L, J, g, verbose=0, threshold=0.12):
     # create the hamiltonian
     hamiltonian = H_TFIM(L, J, g)
     # print the hamiltonian
-    print('hamiltonian:\n', hamiltonian)
+    if verbose > 0:
+        print('hamiltonian:\n', hamiltonian)
 
     # diagonalize the hamiltonian
     eigenvalues, eigenvectors = get_lowest_modes(hamiltonian, 30)
@@ -125,19 +126,20 @@ def analyse_spectrum(L, J, g, print_dominant=False, threshold=0.12):
     print('energies: ', eigenvalues)
     # print the energies per site
     print('ground state energy per site: ', eigenvalues[0] / hamiltonian.L)
-    # print the eigenvectors
-    print('eigenvector per energy:')
-    for i in range(len(eigenvalues)):
-        eigenvec = eigenvectors[:, i]
-        print('{0:.2f}: '.format(eigenvalues[i]), eigenvec, end=';  ')
-        # print out the order parameter for the given state
-        print('m = {0:.3f}'.format(get_order_parameter(eigenvec, hamiltonian)))
-        # collect the dominant contributions in eigenvec
-        if print_dominant:
-            dominant = [d for d in range(len(eigenvec)) if eigenvec[d] > threshold]
-            for j in range(len(dominant)):
-                print('{0:b}'.format(dominant[j]), end=';  ')
-            print()
+    if verbose > 0:
+        # print the eigenvectors
+        print('eigenvector per energy:')
+        for i in range(len(eigenvalues)):
+            eigenvec = eigenvectors[:, i]
+            print('{0:.2f}: '.format(eigenvalues[i]), eigenvec, end=';  ')
+            # print out the order parameter for the given state
+            print('m = {0:.3f}'.format(get_order_parameter(eigenvec, hamiltonian)))
+            # collect the dominant contributions in eigenvec
+            if verbose > 1:
+                dominant = [d for d in range(len(eigenvec)) if eigenvec[d] > threshold]
+                for j in range(len(dominant)):
+                    print('{0:b}'.format(dominant[j]), end=';  ')
+                print()
 
 def main():
     # set printing format for numpy
@@ -149,7 +151,7 @@ def main():
     L, J, g = get_options()
 
     # do a spectrum analysis:
-    analyse_spectrum(L,J,g, print_dominant=False)
+    analyse_spectrum(L,J,g, verbose=1)
 
 
 # don't run main if included 

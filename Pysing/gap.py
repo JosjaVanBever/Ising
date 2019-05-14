@@ -34,7 +34,8 @@ def main():
     J = 20.
 
     # keep track of the gap to excitations
-    gaps = []  # gap
+    gaps1 = [] # gap between "ground and 1st excitation"
+    gaps2 = [] # gap between "1st and 2nd excitation"
     gs = []    # corresponding g
     ms = []    # corresponding m
     # scan over parameter g of the hamiltonian
@@ -45,11 +46,32 @@ def main():
         # get the gap and m
         ms.append(get_order_parameter(vec[:,0], ham))
         # print('m = {0:.3f}'.format(get_order_parameter(vec[:,0], ham)))
-        gaps.append(val[2]-val[1])
+        gaps1.append(val[1]-val[0])
+        gaps2.append(val[2]-val[1])
 
-    print("gap to excitation and m as function of g:")
+    print("gap to excitations and m as function of g:")
     for i in range(len(gaps)):
-        print('g=%.2f: E=%.5f, m=%.3f'% (gs[i], gaps[i], ms[i]))
+        print('g=%.2f: E(1-0)=%.5f, E(2-1)=%.5f, m=%.3f'% \
+            (gs[i], gaps1[i], gaps2[i], ms[i]))
+
+    # m as function of L for g around g_c
+    gs = []
+    ms = []
+    Ls = range(2,13)
+    for g in np.linspace(0.8, 1.2, 8):
+        gs.append(g)
+        Lms = []
+        for L in Ls:
+            ham = H_TFIM(L,J,g)
+            val,vec = get_lowest_modes(ham, 1)
+            Lms.append(get_order_parameter(vec[:,0], ham))
+        ms.append(Lms)
+
+    for i in range(len(gs)):
+        print('g=%.2f:'% (gs[i]), end = ' ')
+        for j in range(len(ms[i])):
+            print('(L=%d: m=%.3f)'% (Ls[j], ms[i][j]), end = ', ')
+        print()
 
 
 # don't run main if included 
